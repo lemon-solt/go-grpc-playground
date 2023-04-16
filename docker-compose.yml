@@ -1,0 +1,12 @@
+version: "3.9"
+
+services:
+  grpc-playground:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./app:/go/app
+    tty: true
+    ports:
+      - 8083:8083

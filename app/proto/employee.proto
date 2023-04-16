@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package employee;
+
+option go_package = "./pb";
+
+import "proto/date.proto";
+
+message Employee {
+    int32 id = 1;
+    string name = 2;
+    string email = 3;
+    Ocupation ocupation = 4;
+    repeated string phon_number = 5;
+    map<string, Project> project = 6; // map
+    oneof profile { // 複数の方をいずれか一つを指定する
+        string text = 7;
+        Video video = 8;
+    }
+    date.Date birth = 9;
+}
+
+message Project {}
+message Video {}
+
+enum Ocupation {
+    UNKNOWN = 0;
+    ENGINEER = 1;
+}
+
+// default
+// string: 空
+// bytes: 空
+// bool: false
+// 整数型: 0

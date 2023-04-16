@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package api;
+# ここは出力先のフォルダを指定する
+option go_package = "github.com/todo-server/pkg/domain/proto/api";
+
+# gRPC Gatewayを使用する時に必要なoptionをimport
+import "google/api/annotations.proto";
+
+service Item {
+    rpc GetItem(GetItemRequest) returns (GetItemResponse) {
+        option (google.api.http) = {
+            post: "/item/get"
+            body: "*"
+        };
+    }
+}
