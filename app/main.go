@@ -1,7 +1,13 @@
 package main
 
-import grpcmarshalsample "app/grpc-marshal-sample"
+import (
+	unaryrpcsample "app/unary-rpc-sample"
+)
 
 func main() {
-	grpcmarshalsample.GrpcMarshalSample()
+	// marhsal proto
+	// grpcmarshalsample.GrpcMarshalSample()
+
+	// unery RPC call
+	unaryrpcsample.SwichClientOrServer()
 }
