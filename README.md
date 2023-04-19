@@ -5,6 +5,7 @@
 - github.com/golang/protobuf/jsonpb
 - github.com/golang/protobuf
 - google.golang.org/protobuf
+- github.com/grpc-ecosystem/go-grpc-middleware
 -
 
 # vscode プラグイン
@@ -22,7 +23,7 @@
 
 ```
 docker compose up -d --build
-docker compose exec grpc-playground /bin/sh
+docker compose exec grpc-playground bash && cd app
 
 ```
 
@@ -53,6 +54,8 @@ https://stackoverflow.com/questions/60578892/protoc-gen-go-grpc-program-not-foun
 --go-grpc_out: protoc-gen-go-grpc: Plugin failed with status code 1.
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
+-- ミドルウェア
+go get -u github.com/grpc-ecosystem/go-grpc-middleware
 
 --buffers
 protoc -I. --go_out=. --go-grpc_out=. *.proto
