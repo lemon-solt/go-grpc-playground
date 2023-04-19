@@ -4,6 +4,7 @@ import (
 	"app/unary-rpc-sample/pb"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -13,11 +14,43 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 )
 
 const (
 	directoryPath string = "./unary-rpc-sample/storage/"
 )
+
+func authorize(ctx context.Context) (context.Context, error) {
+	token, err := grpc_auth.AuthFromMD(ctx, "Bearer")
+	if err != nil {
+		return nil, err
+	}
+
+	if token != "test-token" {
+		return nil, errors.New("bad token")
+	}
+
+	return ctx, nil
+}
+
+func CustomIntercepter() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+		log.Println("start intercepter...")
+
+		resp, err = handler(ctx, req)
+
+		if err != nil {
+			log.Fatalln(err)
+			return nil, err
+		}
+		log.Println("end intercepter...")
+		return resp, nil
+	}
+}
 
 type server struct {
 	pb.UnimplementedFileServiceServer
@@ -167,15 +200,19 @@ func RunClientServer() {
 
 	client := pb.NewFileServiceClient(conn)
 
-	// callListFiles(client)
+	callListFiles(client)
 	// callDownloadFiles(client)
 	// callUpload(client)
-	callUploadAndNotifyProgress(client)
+	// callUploadAndNotifyProgress(client)
 
 }
 
 func callListFiles(client pb.FileServiceClient) {
-	res, err := client.ListFiles(context.Background(), &pb.ListFilesRequest{})
+	// 認証サンプル
+	md := metadata.New(map[string]string{"authorization": "Bearer test-token"})
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
+
+	res, err := client.ListFiles(ctx, &pb.ListFilesRequest{})
 
 	if err != nil {
 		log.Fatalln("error call list", err)
@@ -210,7 +247,18 @@ func RunServerSample() {
 	if err != nil {
 		log.Fatalln("failed backend server", err)
 	}
-	s := grpc.NewServer()
+	s := grpc.NewServer(
+		// オリジナルのミドルウェア実装例
+		// grpc.UnaryInterceptor(CustomIntercepter()),
+
+		// custom middleware
+		grpc.UnaryInterceptor(
+			grpc_middleware.ChainUnaryServer(
+				CustomIntercepter(),
+				grpc_auth.UnaryServerInterceptor(authorize),
+			),
+		),
+	)
 	pb.RegisterFileServiceServer(s, &server{})
 
 	if err := s.Serve(lis); err != nil {
