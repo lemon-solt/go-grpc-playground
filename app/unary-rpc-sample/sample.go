@@ -4,7 +4,6 @@ import (
 	"app/unary-rpc-sample/pb"
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -14,7 +13,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -31,7 +32,7 @@ func authorize(ctx context.Context) (context.Context, error) {
 	}
 
 	if token != "test-token" {
-		return nil, errors.New("bad token")
+		return nil, status.Error(codes.Unauthenticated, "token is in valid.")
 	}
 
 	return ctx, nil
@@ -84,6 +85,10 @@ func (*server) DonwloadFile(req *pb.DownloadRequest, stream pb.FileService_Donwl
 
 	filename := req.GetFilname()
 	path := directoryPath + filename
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return status.Error(codes.NotFound, "file was not found")
+	}
 
 	file, err := os.Open(path)
 
@@ -221,8 +226,11 @@ func callListFiles(client pb.FileServiceClient) {
 }
 
 func callDownloadFiles(client pb.FileServiceClient) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	req := &pb.DownloadRequest{Filname: "sample.txt"}
-	stream, err := client.DonwloadFile(context.Background(), req)
+	stream, err := client.DonwloadFile(ctx, req)
 	if err != nil {
 		log.Fatalln("error stream: ", err)
 	}
@@ -233,7 +241,19 @@ func callDownloadFiles(client pb.FileServiceClient) {
 			break
 		}
 		if err != nil {
-			log.Fatalln("otger stream error: ", err)
+			resErr, ok := status.FromError(err)
+			if ok {
+				if resErr.Code() == codes.NotFound {
+					log.Fatalln("Error was file not found: ", resErr.Code(), resErr.Message())
+				} else if resErr.Code() == codes.DeadlineExceeded {
+					log.Fatalln("deadline exceeded")
+
+				} else {
+					log.Fatalln("unknown grpc error")
+				}
+			} else {
+				log.Fatalln("otger stream error: ", err)
+			}
 		}
 
 		log.Println("response: ", string(res.GetData()))
